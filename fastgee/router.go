@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// router 路由控制
+// 主要的作用: newRouter()  addRoute() getRoute() handle()
 type router struct {
 	roots    map[string]*node
 	handlers map[string]HandlerFunc
