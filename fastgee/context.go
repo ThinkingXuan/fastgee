@@ -21,6 +21,10 @@ type Context struct {
 
 	// response info
 	StatusCode int
+
+	// middleware
+	handlers []HandlerFunc
+	index    int
 }
 
 // newContext create a context
@@ -30,6 +34,22 @@ func newContext(w http.ResponseWriter, req *http.Request) *Context {
 		Req:    req,
 		Path:   req.URL.Path,
 		Method: req.Method,
+		index:  -1,
+	}
+}
+
+// Next() 这个设计非常巧妙：共有两个地方需要调用next()：
+// 中间件和最终处理的handle
+// 如果有一个logger的全局中间件 + 一个普通的get请求， 他们都会回调用next方法。
+// handers会有两个hanldefunc(loggerFunc, getFunc)
+// loggerFunc如果存在next方法，回使用loggerFunc中的next去调用getFunc,
+// 能调用原因： context只有一份，index是共享变量，loggerFunc的next调用后，回将index增加到和len(c.handlers)的长度。
+
+func (c *Context) Next() {
+	c.index++
+	s := len(c.handlers)
+	for ; c.index < s; c.index++ {
+		c.handlers[c.index](c)
 	}
 }
 
@@ -83,4 +103,9 @@ func (c *Context) HTML(code int, html string) {
 	c.SetHeader("Content-type", "text/html")
 	c.Status(code)
 	c.Writer.Write([]byte(html))
+}
+
+func (c *Context) Fail(code int, message string) {
+	c.index = len(c.handlers)
+	c.JSON(code, H{"message": message})
 }
